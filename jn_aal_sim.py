@@ -16,7 +16,7 @@ TRACK_OUTER_RADIUS_Y = 350.0
 
 #return distance to outer wall
 def dist_from_outer_wall(x, y):
-    theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
+    theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X)     
     x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
     y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
