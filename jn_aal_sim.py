@@ -1,5 +1,6 @@
 '''
-
+Path Finding using Q-Learning
+Author: JN, AAL
 '''
 import math
 import numpy
@@ -21,19 +22,23 @@ WEIGHTS = []
 QVALS = []
 
 def dist_from_outer_wall(x, y):
-    theta = math.atan2(x, y)
-    print theta
+    theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
     x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
+    
     y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
+    
     #return distance from outer wall
+
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
+
     
 def dist_from_inner_wall(x, y):
-    theta = math.atan2(x, y)
-    print theta
+    theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
     x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
+    
     y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
     #return distance from outer wall
+
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
     
 def reward():
@@ -77,7 +82,7 @@ def oursim():
         time+=1
 
 def main():
-    print dist_from_inner_wall(300,500)
+    print dist_from_inner_wall(-293.893,-242.705) # theta = 1.3pi
     #oursim()
 
 if __name__ == "__main__":
