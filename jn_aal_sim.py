@@ -29,6 +29,8 @@ def dist_from_inner_wall(x, y):
     y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
     
+def full_lap():
+    return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
 def reward():
     return DISTANCE_TRAVELLED - abs(dist_from_inner_wall() - dist_from_outer_wall())
 
@@ -59,10 +61,12 @@ def f3_rwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_
     return rear_wheel_torque
 
 def f4_Vx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return lat_vel(len(lat_vel))
+    return lat_vel[-1]
 
 def f4_Vy(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return long_vel(len(long_vel))
+    return long_vel[-1]
+
+#def least_squares(weight, change)
 
 '''
 Larger than the distance to the inner/outer wall would lead to a wall assuming a timestep of 1
