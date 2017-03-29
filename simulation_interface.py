@@ -117,7 +117,7 @@ class VehicleTrackSystem:
     Maybe useful for feature testing a test input collision
     Incomplete. Must use outputs from simulate inputs to calcuate new positions
     First create new position function
-    '''
+    
     
     def model_outer_wall_collision(self, x, y):
         return (((x / self.TRACK_OUTER_RADIUS_X) ** 2 +
@@ -125,4 +125,5 @@ class VehicleTrackSystem:
     
     def model_inner_wall_collision(self, x, y):
         return (((x / self.TRACK_INNER_RADIUS_X) ** 2 +
-                 (y / self.TRACK_INNER_RADIUS_Y) ** 2) <= 1.0)    
+                 (y / self.TRACK_INNER_RADIUS_Y) ** 2) <= 1.0)                     
+    '''

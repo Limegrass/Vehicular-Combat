@@ -13,6 +13,10 @@ TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
 TRACK_OUTER_RADIUS_Y = 350.0
+DISCOUNT_FACTOR = 1
+
+def distance_travelled():
+    pass
 
 #return distance to outer wall
 def dist_from_outer_wall(x, y):
@@ -31,7 +35,15 @@ def dist_from_inner_wall(x, y):
     
 def full_lap():
     return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
-def reward():
+def reward(x, y):
+    theta = math.atan2(y, x)
+    
+    #reward positive velocity
+    #reward positive distance travelled
+    #reward distance from walls
+    #negative torques are fine
+    #punish crashes severely
+#    if system.is_collision(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)
     return DISTANCE_TRAVELLED - abs(dist_from_inner_wall() - dist_from_outer_wall())
 
 def qVal():
@@ -52,7 +64,7 @@ How should I be normalizing these?
 '''
 
 def f1_steering_angle(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return steering_angle/
+    return steering_angle
 
 def f2_fwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
     return front_wheel_torque
@@ -81,43 +93,53 @@ def f5_highVx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, lo
 #def f7_thetaV
 
 def oursim():
+    
+    
+    front_wheel_torque = 500.0
+    rear_wheel_torque = 500.0 
+    steering_angle = 0.0
+    #distance_travelled = 0
+    
     time = 1
- 
-
-    FRONT_WHEEL_TORQUE = 500.0
-    REAR_WHEEL_TORQUE = 500.0 
-    STEERING_ANGLE = 0.0
-    DISTANCE_TRAVELLED = 0
-    LEARNING_RATE = 1
-    WEIGHTS = []
+    learning_rate= 1
+    weights= []
+    #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
       
     for i in range(10000):
         
         cur_model = VehicleTrackSystem()
-        LEARNING_RATE = 1/time
+        learning_rate = 1/time
         angle = -.5
         best_angle = 0
         best_q_val = 0
        
         while True:
             #Actually, we should do a +- range from current steering angle so we don't hard steer 
+            #Also for a range of torques
             while angle < 0.51:
                 #thing with angle
                 system.tick_simulation(front_wheel_torque=front_wheel_torque,
                                                rear_wheel_torque=rear_wheel_torque,
                                                steering_angle=steering_angle)                
                 angle += .05
-        system.plot_history()
-        var = raw_input("Give me  the input here: ")
+        #Use history and create new weights
+        #Use old weight values and new points to
+        #Modify our new weight values
+        #Reassign old weights to new weights for persistence
+        
+        #I just wanted to simulate to pause per step to see the effects
+        #var = raw_input("Give me  the input here: ")
         
     
         #Update weights
         
+        #system.plot_history()
         time+=1
 
 def main():
     print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
+    print math.atan2(-1,-1)
     #oursim()
                                
 
