@@ -13,36 +13,23 @@ TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
 TRACK_OUTER_RADIUS_Y = 350.0
-FRONT_WHEEL_TORQUE = 500.0
-REAR_WHEEL_TORQUE = 500.0 
-STEERING_ANGLE = 0.0
-DISTANCE_TRAVELLED = 0
-LEARNING_RATE = 1
-WEIGHTS = []
-QVALS = []
 
+#return distance to outer wall
 def dist_from_outer_wall(x, y):
     theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
     x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
-    
     y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
-    
-    #return distance from outer wall
-
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
 
     
+#return distance to inner wall
 def dist_from_inner_wall(x, y):
     theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
     x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
-    
     y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
-    #return distance from outer wall
-
     return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
     
 def reward():
-    #do something 
     return DISTANCE_TRAVELLED - abs(dist_from_inner_wall() - dist_from_outer_wall())
 
 def qVal():
@@ -55,10 +42,53 @@ def qVal():
     #Use a learning rate 1/t
     pass
 
+def f0_constant(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return 1
+
+'''
+How should I be normalizing these?
+'''
+
+def f1_steering_angle(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return steering_angle/
+
+def f2_fwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return front_wheel_torque
+
+def f3_rwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return rear_wheel_torque
+
+def f4_Vx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return lat_vel(len(lat_vel))
+
+def f4_Vy(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return long_vel(len(long_vel))
+
+'''
+Larger than the distance to the inner/outer wall would lead to a wall assuming a timestep of 1
+Ratio of vx or vy vs dist-wall-x and dist-wall-y
+Not sure if it's a useful parameter since we already have vy&vx
+'''
+def f5_highVx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+    return true
+#def f6_vy equiv
+
+#theta as a function of velocity might be useful since going too fast limits turning
+#def f7_thetaV
+
 def oursim():
     time = 1
-    
-    while True:
+ 
+
+    FRONT_WHEEL_TORQUE = 500.0
+    REAR_WHEEL_TORQUE = 500.0 
+    STEERING_ANGLE = 0.0
+    DISTANCE_TRAVELLED = 0
+    LEARNING_RATE = 1
+    WEIGHTS = []
+    #Define a function fn and put in array so we can call w_n f_n
+      
+    for i in range(10000):
         
         cur_model = VehicleTrackSystem()
         LEARNING_RATE = 1/time
@@ -67,6 +97,7 @@ def oursim():
         best_q_val = 0
        
         while True:
+            #Actually, we should do a +- range from current steering angle so we don't hard steer 
             while angle < 0.51:
                 #thing with angle
                 system.tick_simulation(front_wheel_torque=front_wheel_torque,
@@ -82,8 +113,9 @@ def oursim():
         time+=1
 
 def main():
-    print dist_from_inner_wall(-293.893,-242.705) # theta = 1.3pi
+    print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
     #oursim()
+                               
 
 if __name__ == "__main__":
     main()

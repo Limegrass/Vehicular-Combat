@@ -111,4 +111,18 @@ class VehicleTrackSystem:
     Using the simulate_inputs model from the Model class
     '''
     def simulate_inputs(self, front_wheel_torque, rear_wheel_torque, steering_angle):
-        return self._vehicle_state.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)
+        return self._vehicle_state.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)   
+    
+    '''
+    Maybe useful for feature testing a test input collision
+    Incomplete. Must use outputs from simulate inputs to calcuate new positions
+    First create new position function
+    '''
+    
+    def model_outer_wall_collision(self, x, y):
+        return (((x / self.TRACK_OUTER_RADIUS_X) ** 2 +
+                 (y / self.TRACK_OUTER_RADIUS_Y) ** 2) >= 1.0)
+    
+    def model_inner_wall_collision(self, x, y):
+        return (((x / self.TRACK_INNER_RADIUS_X) ** 2 +
+                 (y / self.TRACK_INNER_RADIUS_Y) ** 2) <= 1.0)    
