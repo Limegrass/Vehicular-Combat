@@ -36,9 +36,11 @@ def dist_from_inner_wall(x, y):
 def full_lap():
     return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
 def reward(x, y):
+    reward = 0 
     theta = math.atan2(y, x)
     
     #reward positive velocity
+    reward += 
     #reward positive distance travelled
     #reward distance from walls
     #negative torques are fine

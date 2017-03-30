@@ -1,0 +1,85 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      2108,         77]
+NotebookOptionsPosition[      1656,         56]
+NotebookOutlinePosition[      1999,         71]
+CellTagsIndexPosition[      1956,         68]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{"x20", " ", "=", " ", 
+  RowBox[{"2.020642435581784", "-", "2"}]}]], "Input",
+ CellChangeTimes->{{3.6998395456737633`*^9, 3.69983954963899*^9}, {
+  3.699841668706194*^9, 3.6998416820949593`*^9}}],
+
+Cell[BoxData[
+ FormBox["0.020642435581784024`", TraditionalForm]], "Output",
+ CellChangeTimes->{3.6998395521361327`*^9, 3.6998416823779755`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"rVsI", " ", "=", " ", 
+  RowBox[{"x20", "/", 
+   RowBox[{"(", 
+    RowBox[{"500", "*", 
+     RowBox[{"20", "^", "2"}]}], ")"}]}]}]], "Input",
+ CellChangeTimes->{{3.699841606685646*^9, 3.699841611335912*^9}, {
+  3.699841698606904*^9, 3.6998417138607764`*^9}, {3.6998449948114357`*^9, 
+  3.699845014557565*^9}}],
+
+Cell[BoxData[
+ FormBox["1.0321217790892013`*^-7", TraditionalForm]], "Output",
+ CellChangeTimes->{
+  3.699841612067954*^9, {3.699841705325288*^9, 3.6998417143718057`*^9}, 
+   3.699845017988762*^9}]
+}, Open  ]],
+
+Cell[BoxData[
+ FormBox["", TraditionalForm]], "Input",
+ CellChangeTimes->{{3.6998416621848207`*^9, 3.699841666622074*^9}}]
+},
+WindowSize->{778, 859},
+WindowMargins->{{567, Automatic}, {Automatic, 50}},
+FrontEndVersion->"11.0 for Microsoft Windows (64-bit) (July 28, 2016)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 218, 4, 30, "Input"],
+Cell[801, 28, 144, 2, 30, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[982, 35, 333, 8, 30, "Input"],
+Cell[1318, 45, 197, 4, 65, "Output"]
+}, Open  ]],
+Cell[1530, 52, 122, 2, 30, "Input"]
+}
+]
+*)
+

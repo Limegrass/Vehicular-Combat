@@ -37,8 +37,8 @@ def sim2():
     """
     system = VehicleTrackSystem()
 
-    front_wheel_torque = 500.0
-    rear_wheel_torque = 500.0 
+    front_wheel_torque = 00.0
+    rear_wheel_torque = 00.0 
     steering_angle = 0.0
     
     try:
@@ -47,9 +47,11 @@ def sim2():
                                    rear_wheel_torque=rear_wheel_torque,
                                    steering_angle=steering_angle)
             # change steering angle (measured in radians) by a random amount
-            steering_angle += uniform(-0.05, 0.05)
-            print system.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)
+            #steering_angle += uniform(-0.05, 0.05)
             print system.vehicle_position_history
+            #for j in range(100):
+                #system.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)
+
     except SimulationError:
         pass
     

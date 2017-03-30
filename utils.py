@@ -10,7 +10,8 @@ Position = namedtuple('Position', ['x', 'y'])
 
 # modify the following path to match the folder to which you unzipped the
 # contents
-ROOT_PATH = 'E:\Davidson\AI\HW4\BicycleVehicleModel'
+#ROOT_PATH = 'E:\Davidson\AI\HW4\BicycleVehicleModel'
+ROOT_PATH = 'H:/Wing IDE Personal 6.0/src/BicycleVehicleModel'
 SIM_RESOLUTION = 0.01
 
 
