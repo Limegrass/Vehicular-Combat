@@ -9,44 +9,35 @@ from random import uniform
 import simulation_interface
 from utils import SimulationError
 
-TRACK_INNER_RADIUS_X = 500.0
-TRACK_OUTER_RADIUS_X = 550.0
-TRACK_INNER_RADIUS_Y = 300.0
-TRACK_OUTER_RADIUS_Y = 350.0
-DISCOUNT_FACTOR = 1
+CRASH_PUNISHMENT = -200
 
 def distance_travelled():
     pass
 
-#return distance to outer wall
-def dist_from_outer_wall(x, y):
-    theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X)     
-    x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
-    y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
-    return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
 
-    
-#return distance to inner wall
-def dist_from_inner_wall(x, y):
-    theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
-    x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
-    y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
-    return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
-    
-def full_lap():
+# crude lap testing
+def full_lap(system):
     return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
-def reward(x, y):
+
+def reward(system):
+    
+    #punish crashes severely
+    if not system.is_on_track:
+        return CRASH_PUNISHMENT
+    
     reward = 0 
-    theta = math.atan2(y, x)
+    #theta = math.atan2(y, x)
     
     #reward positive velocity
-    reward += 
+    reward += (system.cur_vx**2 + system.cur_vy**2)**.5
     #reward positive distance travelled
+    reward += distance_travelled() 
     #reward distance from walls
+    reward -= abs(dist_from_inner_wall() - dist_from_outer_wall())
     #negative torques are fine
-    #punish crashes severely
-#    if system.is_collision(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)
-    return DISTANCE_TRAVELLED - abs(dist_from_inner_wall() - dist_from_outer_wall())
+
+    
+    return reward
 
 def qVal():
     #Steering Angle
@@ -96,6 +87,7 @@ def f5_highVx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, lo
 
 def oursim():
     
+    DISCOUNT_FACTOR = 1
     
     front_wheel_torque = 500.0
     rear_wheel_torque = 500.0 
@@ -111,6 +103,7 @@ def oursim():
     for i in range(10000):
         
         cur_model = VehicleTrackSystem()
+        time = 1
         learning_rate = 1/time
         angle = -.5
         best_angle = 0
@@ -124,7 +117,10 @@ def oursim():
                 system.tick_simulation(front_wheel_torque=front_wheel_torque,
                                                rear_wheel_torque=rear_wheel_torque,
                                                steering_angle=steering_angle)                
+                
                 angle += .05
+                
+            time+=1
         #Use history and create new weights
         #Use old weight values and new points to
         #Modify our new weight values
@@ -137,7 +133,6 @@ def oursim():
         #Update weights
         
         #system.plot_history()
-        time+=1
 
 def main():
     print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))

@@ -24,11 +24,14 @@ class VehicleTrackSystem:
     TRACK_OUTER_RADIUS_X = 550.0
     TRACK_INNER_RADIUS_Y = 300.0
     TRACK_OUTER_RADIUS_Y = 350.0
+    RADIUS_OVER_INERTIA = 1.03212E-7
     
     def __init__(self):
         self._vehicle_state = VehicleModel()
         self.vehicle_position_history = [Position(x=0.0, y=325.0)]
         self.is_on_track = True
+        self.cur_vx = 1.0
+        self.cur_vy = 0.0
         
         
     '''
@@ -65,6 +68,10 @@ class VehicleTrackSystem:
         # determine new vehicle velocity
         lat_velocity, long_velocity = self._vehicle_state.simulate_inputs(
             front_wheel_torque, rear_wheel_torque, steering_angle)
+        
+        # Save resulting velocity of input
+        self.cur_vy = lat_velocity[-1]
+        self.cur_vx = long_velocity[-1]
         
         # update vehicle position on track
         new_x = self._compute_displacement(self.vehicle_position_history[-1].x,
@@ -106,24 +113,36 @@ class VehicleTrackSystem:
                  vehicle_x, vehicle_y, 'r-')
         plt.show()        
     
-    '''
-    Simulates series of time step to be able to calculate the Q values
-    Using the simulate_inputs model from the Model class
-    '''
-    def simulate_inputs(self, front_wheel_torque, rear_wheel_torque, steering_angle):
-        return self._vehicle_state.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)   
+  
     
-    '''
-    Maybe useful for feature testing a test input collision
-    Incomplete. Must use outputs from simulate inputs to calcuate new positions
-    First create new position function
+    #return distance to outer wall
+    def dist_from_outer_wall(x, y):
+        theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X)     
+        x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
+        y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
+        return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
+
     
+    #return distance to inner wall
+    def dist_from_inner_wall(x, y):
+        theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
+        x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
+        y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
+        return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
     
-    def model_outer_wall_collision(self, x, y):
-        return (((x / self.TRACK_OUTER_RADIUS_X) ** 2 +
-                 (y / self.TRACK_OUTER_RADIUS_Y) ** 2) >= 1.0)
-    
-    def model_inner_wall_collision(self, x, y):
-        return (((x / self.TRACK_INNER_RADIUS_X) ** 2 +
-                 (y / self.TRACK_INNER_RADIUS_Y) ** 2) <= 1.0)                     
-    '''
+    def predict_states(self,
+                    front_wheel_torque,
+                    rear_wheel_torque,
+                    steering_angle):
+        
+        total_torque = (front_wheel_torque + rear_wheel_torque)
+        #Not true theta since radii not inputted
+        #theta = math.atan2(self.vehicle_position_history[-1].y, self.vehicle_position_history[-1].x)
+        vx = (math.cos(steering_angle) * (RADIUS_OVER_INERTIA * total_torque)) + cur_vx 
+        vy = (math.sin(steering_angle) * (RADIUS_OVER_INERTIA * total_torque)) + cur_vy
+        x = self.vehicle_position_history[-1].x + cur_vx + (total_torque * math.cos(steering_angle) * RADIUS_OVER_INERTIA / 2)
+        y = self.vehicle_position_history[-1].y + cur_vy + (total_torque * math.sin(steering_angle) * RADIUS_OVER_INERTIA / 2)
+        
+        #Is this legal syntax? How do I access this?
+        return vx, vy, x, y
+        
