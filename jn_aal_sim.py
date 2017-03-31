@@ -15,6 +15,7 @@ TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
 TRACK_OUTER_RADIUS_Y = 350.0
 RADIUS_OVER_INERTIA = 1.03212E-7
+MAX_TORQUE = 500
 
 def distance_travelled(x, y, vx):
     theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X) 
@@ -44,6 +45,30 @@ def dist_from_inner_wall(x, y):
 def full_lap(system):
     return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
 
+#Not quite radial velocity, so can't name it as such
+def circle_velocity(system):
+    velocity = 0
+    #Quadrant 1
+    if(system.vehicle_position_history[-1].x >= 0 and system.vehicle_position_history[-1].y >= 0):
+        velocity -= cur_vy
+        velocity += cur_vx
+    #Quadrant 4
+    elif(system.vehicle_position_history[-1].x >= 0 and system.vehicle_position_history[-1].y <= 0):
+        velocity -= cur_vy
+        velocity -= cur_vx
+    #Quadrant 3
+    elif(system.vehicle_position_history[-1].x <= 0 and system.vehicle_position_history[-1].y <= 0):
+        velocity += cur_vy
+        velocity -= cur_vx
+    #Quadrant 2
+    elif(system.vehicle_position_history[-1].x <= 0 and system.vehicle_position_history[-1].y >= 0):
+        velocity += cur_vy
+        velocity += cur_vx
+    
+    return velocity
+     
+
+
 def reward(system):
     
     #punish crashes severely
@@ -54,10 +79,10 @@ def reward(system):
     #theta = math.atan2(y, x)
     
     #reward positive velocity
-    reward += (system.cur_vx**2 + system.cur_vy**2)**.5
+    reward += circle_velocity(system) 
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
-    #reward distance from walls
+    #reward distance from walls. Best in the center with a value of 0
     reward -= abs(dist_from_inner_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y) 
                   - dist_from_outer_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y))
     #negative torques are fine
@@ -65,7 +90,7 @@ def reward(system):
     
     return reward
 
-def qVal():
+def qVal(weights, features):
     #Steering Angle
     #Distance from Center/Top/Bot of Track
     #Velocity
@@ -75,27 +100,35 @@ def qVal():
     #Use a learning rate 1/t
     pass
 
-def f0_constant(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
+def f0_constant(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
     return 1
 
 '''
 How should I be normalizing these?
 '''
 
-def f1_steering_angle(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return steering_angle
+def f1_steering_angle(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X) 
+    if(theta >= 0):
+        theta -= math.pi/2
+    else:
+        theta += math.pi/2
+    #Let weights make it negative
+    #Normalized
+    return abs(steering_angle-theta/math.pi)
 
-def f2_fwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return front_wheel_torque
+def f2_fwt(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    return front_wheel_torque/MAX_TORQUE
 
-def f3_rwt(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return rear_wheel_torque
+def f3_rwt(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    return rear_wheel_torque/MAX_TORQUE
 
-def f4_Vx(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return lat_vel[-1]
+def f4_vx(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    #Max possible vx that would not crash into a wall 
+    return vx
 
-def f4_Vy(steering_angle, front_wheel_torque, rear_wheel_torque, lat_vel, long_vel):
-    return long_vel[-1]
+def f4_vy(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    return vy
 
 #def least_squares(weight, change)
 
