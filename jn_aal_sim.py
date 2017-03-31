@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -2000
+CRASH_PUNISHMENT = -2500
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -20,6 +20,7 @@ MAX_TORQUE = 500
 TORQUE_INCREMENT = 50
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/16
+SIMULATION_MAX_TIME = 5
 
 
 
@@ -76,6 +77,9 @@ def circle_velocity(system):
     return velocity
      
 
+def follow_centerness(x, y):
+    return abs(dist_from_inner_wall(x, y) 
+                  - dist_from_outer_wall(x, y)) 
 
 def reward(system):
     
@@ -91,8 +95,7 @@ def reward(system):
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
-    reward -= abs(dist_from_inner_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y) 
-                  - dist_from_outer_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y))
+    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)
     #negative torques are fine
 
     
@@ -170,6 +173,15 @@ def f6_high_v_tangential(steering_angle, front_wheel_torque, rear_wheel_torque, 
     #If the tangential velocity to a wall relative to the direction the car should face is >50
     return abs(vx*math.cos(theta) - vy * math.sin(theta))/50
 
+def f7_distance(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy): 
+    return distance_travelled(x, y, vx) / (2*math.pi*TRACK_OUTER_RADIUS_X)
+
+
+def f8_centerness(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    return follow_centerness(x, y) / 50
+
+#def f9_circle_velocity(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+ #   return 0
 #theta as a function of velocity might be useful since going too fast limits turning
 #def f7_thetaV
 
@@ -182,21 +194,22 @@ def oursim():
     rear_wheel_torque = 500.0 
     steering_angle = 0.0
     #distance_travelled = 0
-    
     weights= []
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential]
-    for i in range(0, 7):
-        weights.append(uniform(0, 5))
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness]
+    for i in range(0, len(features)):
+        weights.append(uniform(-5, 5))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
       
     #for i in range(10000):
-    for i in range(100):
+    for i in range(SIMULATION_MAX_TIME):
         try:
             cur_model = VehicleTrackSystem()
             #i represents time/episode
             learning_rate = 1/(i+1)
-            
+            q_values = []
+            last_angle = 0
+            last_torque = 0
            
             while cur_model.is_on_track:
                 #Actually, we should do a +- range from current steering angle so we don't hard steer 
@@ -211,6 +224,7 @@ def oursim():
                         test_angle = steering_angle + (angle_multiplier*STEERING_ANGLE_INCREMENT)
                         x, y, vx, vy = cur_model.predict_states(test_torque, test_torque, test_angle)
                         test_q = qVal(weights, features, test_torque, test_torque, test_angle, x, y, vx, vy)
+                        #print test_q
                         #thing with angle
                         if test_q > best_q_val:
                             best_torque_multiplier = torque_multiplier
@@ -242,9 +256,9 @@ def oursim():
                         
                 else:
                 #Take best choice and use the simualtion on it
-                    cur_model.tick_simulation(front_wheel_torque=best_torque,
-                                                   rear_wheel_torque=best_torque,
-                                                   steering_angle=best_angle)                      
+                    cur_model.tick_simulation(front_wheel_torque=front_wheel_torque+best_torque_multiplier*TORQUE_INCREMENT,
+                                                   rear_wheel_torque=rear_wheel_torque+best_torque_multiplier*TORQUE_INCREMENT,
+                                                   steering_angle=steering_angle+(best_angle_multplier*STEERING_ANGLE_INCREMENT))                      
             #Use history and create new weights
             #Use old weight values and new points to
             #Modify our new weight values
@@ -252,15 +266,14 @@ def oursim():
             
             #I just wanted to simulate to pause per step to see the effects
         except SimulationError:
-            pass
-            #cur_model.plot_history()
+            print i
+            if i==SIMULATION_MAX_TIME-1:
+                cur_model.plot_history()
             
             #var = raw_input("Give me  the input here when ready to move on: ")
-        
     
         #Update weights
         
-        cur_model.plot_history()
 
 def main():
     #print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
