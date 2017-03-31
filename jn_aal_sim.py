@@ -20,7 +20,8 @@ MAX_TORQUE = 500
 TORQUE_INCREMENT = 50
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/16
-SIMULATION_MAX_TIME = 5
+SIMULATION_MAX_TIME = 10
+GAMMA = .5
 
 
 
@@ -59,20 +60,20 @@ def circle_velocity(system):
     velocity = 0
     #Quadrant 1
     if(system.vehicle_position_history[-1].x >= 0 and system.vehicle_position_history[-1].y >= 0):
-        velocity -= cur_vy
-        velocity += cur_vx
+        velocity -= system.cur_vy
+        velocity += system.cur_vx
     #Quadrant 4
     elif(system.vehicle_position_history[-1].x >= 0 and system.vehicle_position_history[-1].y <= 0):
-        velocity -= cur_vy
-        velocity -= cur_vx
+        velocity -= system.cur_vy
+        velocity -= system.cur_vx
     #Quadrant 3
     elif(system.vehicle_position_history[-1].x <= 0 and system.vehicle_position_history[-1].y <= 0):
-        velocity += cur_vy
-        velocity -= cur_vx
+        velocity += system.cur_vy
+        velocity -= system.cur_vx
     #Quadrant 2
     elif(system.vehicle_position_history[-1].x <= 0 and system.vehicle_position_history[-1].y >= 0):
-        velocity += cur_vy
-        velocity += cur_vx
+        velocity += system.cur_vy
+        velocity += system.cur_vx
     
     return velocity
      
@@ -109,6 +110,13 @@ def qVal(weights, features, steering_angle, front_wheel_torque, rear_wheel_torqu
     #(Theta(v))?
     #(Torque(Angular Momentum/Yaw, something))?
     return q
+
+def feature_evaluations(features, steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
+    evals = []
+    for i in range(len(features)):
+        evals.append(features[i](steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy))
+    return evals
+
 
 def f0_constant(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
     return 1
@@ -154,11 +162,6 @@ def f5_vy(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
         theta += math.pi/2
     return abs((vy/(vx**2 + vy**2)**.5 - math.sin(theta)) / math.sin(theta))
 
-#def least_squares(weight, change)
-    #
-    #Use a learning rate 1/t
-
-
 '''
 Larger than the distance to the inner/outer wall would lead to a wall assuming a timestep of 1
 Ratio of vx or vy vs dist-wall-x and dist-wall-y
@@ -185,6 +188,14 @@ def f8_centerness(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, v
 #theta as a function of velocity might be useful since going too fast limits turning
 #def f7_thetaV
 
+
+def update_weights(weights, q_values, rewards, feature_evals, learning_rate):
+    print rewards[-1], rewards[-2]
+    for i in range(len(weights)):
+        for j in range(len(rewards)-2):
+            weights[i] = weights[i] + learning_rate*(rewards[-j-2] + GAMMA*q_values[-j-1] - q_values[-j-2])*feature_evals[-j-2][i]
+    return weights
+    
 def oursim():
     
     
@@ -197,17 +208,20 @@ def oursim():
     weights= []
     features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness]
     for i in range(0, len(features)):
-        weights.append(uniform(-5, 5))
+        weights.append(uniform(-1, 1))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
       
     #for i in range(10000):
     for i in range(SIMULATION_MAX_TIME):
+        cur_model = VehicleTrackSystem()
+ 
         try:
-            cur_model = VehicleTrackSystem()
-            #i represents time/episode
+           #i represents time/episode
             learning_rate = 1/(i+1)
             q_values = []
+            rewards = []
+            feature_evals = []
             last_angle = 0
             last_torque = 0
            
@@ -217,6 +231,10 @@ def oursim():
                 best_q_val = CRASH_PUNISHMENT
                 best_torque_multiplier = 0
                 best_angle_multplier = 0 
+                best_x = 0
+                best_y = 0
+                best_vx = 0
+                best_vy = 0
                 for torque_multiplier in range(-10, 11):
                     test_torque = torque_multiplier*TORQUE_INCREMENT
                                         for angle_multiplier in range(-8, 9):
@@ -229,6 +247,10 @@ def oursim():
                         if test_q > best_q_val:
                             best_torque_multiplier = torque_multiplier
                             best_angle_multplier = angle_multiplier
+                            best_x = x
+                            best_y = y
+                            best_vx = vx 
+                            best_vy = vy
                         #Test parameters
                         #Calculate predicted Q vals
                         #Save best angle and torque
@@ -250,15 +272,28 @@ def oursim():
                         steering_angle -= 2*math.pi
                     elif(steering_angle - (test_different_angle_multiplier * STEERING_ANGLE_INCREMENT) < math.pi):
                         steering_angle += 2*math.pi
+                        
+                    x, y, vx, vy = cur_model.predict_states(TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle)
+                    q_values.append(qVal(weights, features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier, x, y, vx, vy))
+                    feature_evals.append(feature_evaluations(features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier, x, y, vx, vy))
+                    rewards.append(reward(cur_model))
                     cur_model.tick_simulation(front_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
                                                    rear_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
                                                    steering_angle=steering_angle+(test_different_angle_multiplier*STEERING_ANGLE_INCREMENT))                       
                         
                 else:
                 #Take best choice and use the simualtion on it
-                    cur_model.tick_simulation(front_wheel_torque=front_wheel_torque+best_torque_multiplier*TORQUE_INCREMENT,
-                                                   rear_wheel_torque=rear_wheel_torque+best_torque_multiplier*TORQUE_INCREMENT,
+                    
+                    q_values.append(qVal(weights, features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, x, y, vx, vy))
+                    rewards.append(reward(cur_model))
+                    feature_evals.append(feature_evaluations(features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, x, y, vx, vy))
+                    cur_model.tick_simulation(front_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
+                                                   rear_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
                                                    steering_angle=steering_angle+(best_angle_multplier*STEERING_ANGLE_INCREMENT))                      
+            
             #Use history and create new weights
             #Use old weight values and new points to
             #Modify our new weight values
@@ -266,7 +301,9 @@ def oursim():
             
             #I just wanted to simulate to pause per step to see the effects
         except SimulationError:
-            print i
+            rewards.append(reward(cur_model))
+            print "Simulation ", i , " weights: " , weights
+            weights = update_weights(weights, q_values, rewards, feature_evals, learning_rate)
             if i==SIMULATION_MAX_TIME-1:
                 cur_model.plot_history()
             
