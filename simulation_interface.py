@@ -32,6 +32,7 @@ class VehicleTrackSystem:
         self.is_on_track = True
         self.cur_vx = 1.0
         self.cur_vy = 0.0
+        self.distance = 0
         
         
     '''
@@ -64,6 +65,8 @@ class VehicleTrackSystem:
                         steering_angle):
         if not self.is_on_track:
             raise SimulationError('vehicle is already off the track!')
+        
+
         
         # determine new vehicle velocity
         lat_velocity, long_velocity = self._vehicle_state.simulate_inputs(
@@ -113,22 +116,7 @@ class VehicleTrackSystem:
                  vehicle_x, vehicle_y, 'r-')
         plt.show()        
     
-  
     
-    #return distance to outer wall
-    def dist_from_outer_wall(x, y):
-        theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X)     
-        x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
-        y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
-        return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
-
-    
-    #return distance to inner wall
-    def dist_from_inner_wall(x, y):
-        theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
-        x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
-        y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
-        return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
     
     def predict_states(self,
                     front_wheel_torque,

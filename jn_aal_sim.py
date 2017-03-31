@@ -9,11 +9,36 @@ from random import uniform
 import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -200
+CRASH_PUNISHMENT = -2000
+TRACK_INNER_RADIUS_X = 500.0
+TRACK_OUTER_RADIUS_X = 550.0
+TRACK_INNER_RADIUS_Y = 300.0
+TRACK_OUTER_RADIUS_Y = 350.0
+RADIUS_OVER_INERTIA = 1.03212E-7
 
-def distance_travelled():
-    pass
+def distance_travelled(x, y, vx):
+    theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X) 
+    if(theta < 0):
+        theta += math.pi/2
+    elif (theta > (math.pi/2) and vx > 0):
+        theta += math.pi
+    return theta*TRACK_OUTER_RADIUS_X
 
+    
+#return distance to outer wall
+def dist_from_outer_wall(x, y):
+    theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X)     
+    x_boundary = TRACK_OUTER_RADIUS_X * math.cos(theta)
+    y_boundary = TRACK_OUTER_RADIUS_Y * math.sin(theta)
+    return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
+
+
+#return distance to inner wall
+def dist_from_inner_wall(x, y):
+    theta = math.atan2(y/TRACK_INNER_RADIUS_Y, x/TRACK_INNER_RADIUS_X)     
+    x_boundary = TRACK_INNER_RADIUS_X * math.cos(theta)
+    y_boundary = TRACK_INNER_RADIUS_Y * math.sin(theta)
+    return ((x-x_boundary)**2 + (y-y_boundary)**2)**.5
 
 # crude lap testing
 def full_lap(system):
@@ -31,9 +56,10 @@ def reward(system):
     #reward positive velocity
     reward += (system.cur_vx**2 + system.cur_vy**2)**.5
     #reward positive distance travelled
-    reward += distance_travelled() 
+    reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls
-    reward -= abs(dist_from_inner_wall() - dist_from_outer_wall())
+    reward -= abs(dist_from_inner_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y) 
+                  - dist_from_outer_wall(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y))
     #negative torques are fine
 
     
