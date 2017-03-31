@@ -5,8 +5,8 @@ Author: JN, AAL
 import math
 import numpy
 from random import uniform
-#from simulation_interface import VehicleTrackSystem
-import simulation_interface
+from simulation_interface import VehicleTrackSystem
+#import simulation_interface
 from utils import SimulationError
 
 CRASH_PUNISHMENT = -2000
@@ -97,15 +97,13 @@ def reward(system):
     
     return reward
 
-def qVal(weights, features):
+def qVal(weights, features, steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
     q = 0
     #Steering Angle
-    #Distance from Center/Top/Bot of Track
-    #Velocity
+    for i in range(0, 7):
+        q += weights[i]*features(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy)
     #(Theta(v))?
     #(Torque(Angular Momentum/Yaw, something))?
-    #
-    #Use a learning rate 1/t
     return q
 
 def f0_constant(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
@@ -153,13 +151,16 @@ def f5_vy(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy):
     return abs((vy/(vx**2 + vy**2)**.5 - math.sin(theta)) / math.sin(theta))
 
 #def least_squares(weight, change)
+    #
+    #Use a learning rate 1/t
+
 
 '''
 Larger than the distance to the inner/outer wall would lead to a wall assuming a timestep of 1
 Ratio of vx or vy vs dist-wall-x and dist-wall-y
 Not sure if it's a useful parameter since we already have vy&vx
 '''
-def f6_high_vx(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy): 
+def f6_high_v_tangential(steering_angle, front_wheel_torque, rear_wheel_torque, x, y, vx, vy): 
     theta = math.atan2(y/TRACK_OUTER_RADIUS_Y, x/TRACK_OUTER_RADIUS_X) 
     if(theta >= 0):
         theta -= math.pi/2
@@ -181,44 +182,46 @@ def oursim():
     steering_angle = 0.0
     #distance_travelled = 0
     
-    time = 1
-    learning_rate= 1
     weights= []
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_vx ]
-    for i in range(7):
-        weights[i] = uniform(0, 5)
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential]
+    for i in range(0, 7):
+        weights.append(uniform(0, 5))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
       
-    for i in range(10000):
-        
+    #for i in range(10000):
+    for i in range(1):
         cur_model = VehicleTrackSystem()
-        #should it be time = i
-        time = 1
-        learning_rate = 1/time
+        #i represents time/episode
+        learning_rate = 1/(i+1)
        
         while cur_model.is_on_track:
             #Actually, we should do a +- range from current steering angle so we don't hard steer 
             #Also for a range of torques
-            best_q_val = 0
+            best_q_val = CRASH_PUNISHMENT
             best_torque = 0
             best_angle = steering_angle 
-            for test_torque in range(-500, 500):
+            for torque_multiplier in range(-10, 10):
+                test_torque = torque_multiplier*TORQUE_INCREMENT
                 test_angle = steering_angle - math.pi/2
                 while test_angle <= steering_angle + math.pi/2:
+                    predictions = cur_model.predict_states(test_torque, test_torque, test_angle)
+                    test_q = qVal(test_torque, test_torque, test_angle, predictions.x, predictions.y, predictions.vx, predictions.vy)
                     #thing with angle
                     test_angle += STEERING_ANGLE_INCREMENT
+                    if test_q > best_q_val:
+                        best_torque = test_torque
+                        best_angle = test_angle
                     #Test parameters
                     #Calculate predicted Q vals
                     #Save best angle and torque
+                    
                     
                     
             #Take best choice and use the simualtion on it
             system.tick_simulation(front_wheel_torque=best_torque,
                                            rear_wheel_torque=best_torque,
                                            steering_angle=best_angle)                      
-            time+=1
-            learning_rate = 1/time
         #Use history and create new weights
         #Use old weight values and new points to
         #Modify our new weight values
@@ -233,9 +236,9 @@ def oursim():
         #system.plot_history()
 
 def main():
-    print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
-    print math.atan2(-1,-1)
-    #oursim()
+    #print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
+    #print math.atan2(-1,-1)
+    oursim()
                                
 
 if __name__ == "__main__":

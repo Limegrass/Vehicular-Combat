@@ -13,6 +13,7 @@ current position is from the central line around the track.
 
 Author: RR
 """
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from model_interface import VehicleModel
@@ -126,11 +127,10 @@ class VehicleTrackSystem:
         total_torque = (front_wheel_torque + rear_wheel_torque)
         #Not true theta since radii not inputted
         #theta = math.atan2(self.vehicle_position_history[-1].y, self.vehicle_position_history[-1].x)
-        vx = (math.cos(steering_angle) * (RADIUS_OVER_INERTIA * total_torque)) + cur_vx 
-        vy = (math.sin(steering_angle) * (RADIUS_OVER_INERTIA * total_torque)) + cur_vy
-        x = self.vehicle_position_history[-1].x + cur_vx + (total_torque * math.cos(steering_angle) * RADIUS_OVER_INERTIA / 2)
-        y = self.vehicle_position_history[-1].y + cur_vy + (total_torque * math.sin(steering_angle) * RADIUS_OVER_INERTIA / 2)
+        vx = (math.cos(steering_angle) * (self.RADIUS_OVER_INERTIA * total_torque)) + self.cur_vx 
+        vy = (math.sin(steering_angle) * (self.RADIUS_OVER_INERTIA * total_torque)) + self.cur_vy
+        x = self.vehicle_position_history[-1].x + self.cur_vx + (total_torque * math.cos(steering_angle) * self.RADIUS_OVER_INERTIA / 2)
+        y = self.vehicle_position_history[-1].y + self.cur_vy + (total_torque * math.sin(steering_angle) * self.RADIUS_OVER_INERTIA / 2)
         
         #Is this legal syntax? How do I access this?
-        return vx, vy, x, y
-        
+        return x, y, vx, vy        
