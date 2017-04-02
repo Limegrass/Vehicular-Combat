@@ -15,14 +15,16 @@ TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
 TRACK_OUTER_RADIUS_Y = 350.0
+TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
+TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
 MAX_TORQUE = 500
 TORQUE_INCREMENT = 20
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/32
-SIMULATION_MAX_TIME = 42
+SIMULATION_MAX_TIME = 42/2
 DISCOUNT_FACTOR = .8
-LEARNING_RATE = .8
+LEARNING_RATE = .5
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -33,7 +35,7 @@ NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 #One idea to simplify all the code could be to swap x and y s.t we don't have to bother with 4 quadrants and instead deal with 2 hemispheres
 #This is if we began at 0 and also travel ccw
 def distance_travelled(x, y, vx):
-    theta = math.atan2(2*y/(TRACK_OUTER_RADIUS_Y+TRACK_INNER_RADIUS_Y), 2*x/(TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)) 
+    theta = math.atan2(y/TRACK_MIDDLE_RADIUS_Y, x/TRACK_MIDDLE_RADIUS_X) 
     if(theta < 0):
         theta = math.pi/2 - theta
     elif (theta > (math.pi/2) and vx > 0):
@@ -130,7 +132,7 @@ def f0_constant(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
 
 def f1_steering_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     #Find the angle it should face for forward movement
-    theta = math.atan2(2*system.vehicle_position_history[-1].y/(TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y), 2*system.vehicle_position_history[-1].x/(TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)) 
+    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     return abs((steering_angle-theta)/math.pi)
 
@@ -141,7 +143,7 @@ def f3_rwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     return abs((rwt+MAX_TORQUE)/(MAX_TORQUE*2))
 
 def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
-    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_OUTER_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_OUTER_RADIUS_X) 
+    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     #Return the difference between the expected fractional component of the current angle
     # and the current steering angle, divided by the expected
@@ -149,14 +151,14 @@ def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     return abs(((system.cur_vx/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.cos(theta))) / math.cos(theta))
 
 def f5_vy(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
-    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_OUTER_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_OUTER_RADIUS_X) 
+    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     if theta == 0:
         return abs(((system.cur_vy/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.sin(theta))))
     return abs(((system.cur_vy/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.sin(theta))) / math.sin(theta))
 
 def f6_high_v_tangential(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
-    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_OUTER_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_OUTER_RADIUS_X) 
+    theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     #If the tangential velocity to a wall relative to the direction the car should face is >50
     return abs(system.cur_vx*math.cos(theta) - system.cur_vy * math.sin(theta))/50
@@ -168,6 +170,27 @@ def f7_distance(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
 def f8_centerness(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     return abs(follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y) / 50)
 
+def f9_pvx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+    theta = math.atan2(py/TRACK_MIDDLE_RADIUS_Y, px/TRACK_MIDDLE_RADIUS_X) 
+    theta -= math.pi/2
+    #Return the difference between the expected fractional component of the current angle
+    # and the current steering angle, divided by the expected
+    # Possibly add a factor of 550/350 ?
+    return abs(((pvx/(pvx**2 + pvy**2)**.5 - math.cos(theta))) / math.cos(theta))
+
+def f10_pvy(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+    theta = math.atan2(py/TRACK_MIDDLE_RADIUS_Y, px/TRACK_MIDDLE_RADIUS_X) 
+    theta -= math.pi/2
+    if theta == 0:
+        return abs(((pvy/(pvx**2 + pvy**2)**.5 - math.sin(theta))))
+    return abs(((pvy/(pvx**2 + pvy**2)**.5 - math.sin(theta))) / math.sin(theta))
+
+def f11_pdistance(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+    return abs(distance_travelled(px, py, pvx) / (2*math.pi*TRACK_OUTER_RADIUS_X))
+
+def f12_pcenterness(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+    return abs(follow_centerness(px, py)/50)
+
 #def f9_circle_velocity(steering_angle, fwt, rwt, x, y, vx, vy):
  #   return 0
 #theta as a function of velocity might be useful since going too fast limits turning
@@ -178,12 +201,12 @@ def f8_centerness(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     
 '''++++++++++++++++++++++++++++++++++++Stuff that probably doesn't work perfectly++++++++++++++++++++++++++++++++'''
 def oursim():
-    fwt = 500.0
-    rwt = 500.0 
+    front_wheel_torque = 500.0
+    rear_wheel_torque = 500.0 
     steering_angle = 0.0
     #distance_travelled = 0
     weights= []
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness]
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness]
     for i in range(len(features)):
         weights.append(uniform(-1, 1))
     #Initialize random weights
@@ -339,8 +362,10 @@ def update_weights(weights, q_values, rewards, feature_evals):
     #print len(rewards), len(q_values), len(weights), len(feature_evals)
     
     
+    
     for i in range(len(q_values)-1):
         q_values[-i-1] -= LEARNING_RATE*rewards[-i-1]
+        
         
         
     for i in range(len(weights)):
