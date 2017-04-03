@@ -111,7 +111,7 @@ def qVal(weights, features, steering_angle, fwt, rwt, system, dtheta):
     q = 0
     px, py, pvx, pvy = system.predict_states(fwt, rwt, steering_angle)
     #Steering Angle
-    for i in range(0, 7):
+    for i in range(len(features)):
         q += weights[i]*features[i](steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta)
     #(Theta(v))?
     #(Torque(Angular Momentum/Yaw, something))?
@@ -216,9 +216,12 @@ def oursim():
     #distance_travelled = 0
     weights= []
     #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
+    '''
     features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential,
                 f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness,
                 f13_crash, f14_delta_theta]
+                '''
+    features = [f0_constant, f1_steering_angle]
     for i in range(len(features)):
         weights.append(uniform(0, 1))
     #Initialize random weights
@@ -322,8 +325,8 @@ def oursim():
             print "MAX Q: ", best_qs
             print "Simulation ", i , " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
-#            if i==SIMULATION_MAX_TIME-1:
-            system.plot_history()
+            if i==SIMULATION_MAX_TIME-1:
+                system.plot_history()
             
             #var = raw_input("Give me  the input here when ready to move on: ")
     
