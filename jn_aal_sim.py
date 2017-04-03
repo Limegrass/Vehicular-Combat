@@ -22,9 +22,9 @@ MAX_TORQUE = 500
 TORQUE_INCREMENT = 20
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/32
-SIMULATION_MAX_TIME = 42/2
+SIMULATION_MAX_TIME = 7
 DISCOUNT_FACTOR = .8
-LEARNING_RATE = .5
+LEARNING_RATE = .8
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -107,42 +107,42 @@ def circle_velocity(system):
     return velocity
      
 
-def qVal(weights, features, steering_angle, fwt, rwt, system):
+def qVal(weights, features, steering_angle, fwt, rwt, system, dtheta):
     q = 0
     px, py, pvx, pvy = system.predict_states(fwt, rwt, steering_angle)
     #Steering Angle
     for i in range(0, 7):
-        q += weights[i]*features[i](steering_angle, fwt, rwt, system, px, py, pvx, pvy)
+        q += weights[i]*features[i](steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta)
     #(Theta(v))?
     #(Torque(Angular Momentum/Yaw, something))?
     return q
 
-def feature_evaluations(features, steering_angle, fwt, rwt, system):
+def feature_evaluations(features, steering_angle, fwt, rwt, system, dtheta):
     evals = []
     px, py, pvx, pvy = system.predict_states(fwt, rwt, steering_angle)
 
     for i in range(len(features)):
-        evals.append(features[i](steering_angle, fwt, rwt, system, px, py, pvx, pvy))
+        evals.append(features[i](steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta))
     return evals
 
 '''=======================================FEATURES=========================================================='''
 
-def f0_constant(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f0_constant(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     return 1.0
 
-def f1_steering_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f1_steering_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     #Find the angle it should face for forward movement
     theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     return abs((steering_angle-theta)/math.pi)
 
-def f2_fwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
-    return float(abs((fwt+MAX_TORQUE)/(MAX_TORQUE*2)))
+def f2_fwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
+    return abs((fwt+MAX_TORQUE)/(MAX_TORQUE*2))
 
-def f3_rwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f3_rwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     return abs((rwt+MAX_TORQUE)/(MAX_TORQUE*2))
 
-def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     #Return the difference between the expected fractional component of the current angle
@@ -150,27 +150,27 @@ def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     # Possibly add a factor of 550/350 ?
     return abs(((system.cur_vx/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.cos(theta))) / math.cos(theta))
 
-def f5_vy(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f5_vy(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     if theta == 0:
         return abs(((system.cur_vy/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.sin(theta))))
     return abs(((system.cur_vy/(system.cur_vx**2 + system.cur_vy**2)**.5 - math.sin(theta))) / math.sin(theta))
 
-def f6_high_v_tangential(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+def f6_high_v_tangential(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     #If the tangential velocity to a wall relative to the direction the car should face is >50
     return abs(system.cur_vx*math.cos(theta) - system.cur_vy * math.sin(theta))/50
 
-def f7_distance(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+def f7_distance(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) / (2*math.pi*TRACK_OUTER_RADIUS_X))
 
 
-def f8_centerness(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f8_centerness(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     return abs(follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y) / 50)
 
-def f9_pvx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f9_pvx(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     theta = math.atan2(py/TRACK_MIDDLE_RADIUS_Y, px/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     #Return the difference between the expected fractional component of the current angle
@@ -178,18 +178,25 @@ def f9_pvx(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
     # Possibly add a factor of 550/350 ?
     return abs(((pvx/(pvx**2 + pvy**2)**.5 - math.cos(theta))) / math.cos(theta))
 
-def f10_pvy(steering_angle, fwt, rwt, system, px, py, pvx, pvy):
+def f10_pvy(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     theta = math.atan2(py/TRACK_MIDDLE_RADIUS_Y, px/TRACK_MIDDLE_RADIUS_X) 
     theta -= math.pi/2
     if theta == 0:
         return abs(((pvy/(pvx**2 + pvy**2)**.5 - math.sin(theta))))
     return abs(((pvy/(pvx**2 + pvy**2)**.5 - math.sin(theta))) / math.sin(theta))
 
-def f11_pdistance(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+def f11_pdistance(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(distance_travelled(px, py, pvx) / (2*math.pi*TRACK_OUTER_RADIUS_X))
 
-def f12_pcenterness(steering_angle, fwt, rwt, system, px, py, pvx, pvy): 
+def f12_pcenterness(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(follow_centerness(px, py)/50)
+
+def f13_crash(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return 1 if system.is_on_track else 0
+def f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return dtheta
+
+
 
 #def f9_circle_velocity(steering_angle, fwt, rwt, x, y, vx, vy):
  #   return 0
@@ -206,46 +213,49 @@ def oursim():
     steering_angle = 0.0
     #distance_travelled = 0
     weights= []
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness]
+    #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness, f13_crash, f14_delta_theta]
     for i in range(len(features)):
-        weights.append(uniform(-1, 1))
+        weights.append(uniform(0, 1))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
    
     for i in range(SIMULATION_MAX_TIME):
         system = VehicleTrackSystem()
- 
         try:
            #i represents time/episode
-            
             epsilon = 1/(i+1)
             q_values = []
             rewards = []
             feature_evals = []
             last_angle = 0
             last_torque = 0
+            best_qs = []
            
-            while system.is_on_track:
+            while True:
                 #Actually, we should do a +- range from current steering angle so we don't hard steer 
                 #Also for a range of torques
                 best_q_val = CRASH_PUNISHMENT
                 best_torque_multiplier = 0
                 best_angle_multplier = 0 
-                for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
+                for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS+1)):
                     test_torque = torque_multiplier*TORQUE_INCREMENT
                                         for angle_multiplier in range(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
                         
                         test_angle = steering_angle + (angle_multiplier*STEERING_ANGLE_INCREMENT)
-                        test_q = qVal(weights, features, test_angle, test_torque, test_torque, system)
+                        test_q = qVal(weights, features, test_angle, test_torque, test_torque, system, (angle_multiplier*STEERING_ANGLE_INCREMENT))
                         #print test_q
                         #thing with angle
                         if test_q > best_q_val:
                             best_torque_multiplier = torque_multiplier
                             best_angle_multplier = angle_multiplier
+                            best_q_val = test_q
                         #Test parameters
                         #Calculate predicted Q vals
                         #Save best angle and torque
                         
+                best_qs.append(best_q_val)
+
                         
                 #print best_angle_multplier
                 #print best_torque_multiplier
@@ -253,45 +263,43 @@ def oursim():
                     
                   # print best_angle_multplier
                    # print best_torque_multiplier
-                    test_different_torque_multiplier = random.randint(int(-NUM_TORQUE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
+                    test_different_torque_multiplier = random.randint(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS))
                     while (test_different_torque_multiplier == best_torque_multiplier):
-                        test_different_torque_multiplier = random.randint(int(-NUM_TORQUE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
+                        test_different_torque_multiplier = random.randint(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS))
                     test_different_angle_multiplier = random.randint(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
                     while(test_different_angle_multiplier == best_angle_multplier):
                         test_different_angle_multiplier = random.randint(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
+                        '''
                     if(steering_angle+(test_different_angle_multiplier*STEERING_ANGLE_INCREMENT) > math.pi):
                         steering_angle -= 2*math.pi
                     elif(steering_angle - (test_different_angle_multiplier * STEERING_ANGLE_INCREMENT) < math.pi):
                         steering_angle += 2*math.pi
+                        '''
                         
-                    while system.is_on_track:
-                        x, y, vx, vy = system.predict_states(TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle)
-                        q_values.append(qVal(weights, features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
-                                             TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier,
-                                             system))
-    
-                        feature_evals.append(feature_evaluations(features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
-                                             TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier,system))
-    
-                        rewards.append(reward(system))
-                        steering_angle = steering_angle+(test_different_angle_multiplier*STEERING_ANGLE_INCREMENT)
-                        system.tick_simulation(front_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
-                                                       rear_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
-                                                       steering_angle=steering_angle)                       
+                    q_values.append(qVal(weights, features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier,
+                                         system, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT))
+
+                    feature_evals.append(feature_evaluations(features, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*test_different_torque_multiplier, TORQUE_INCREMENT*test_different_torque_multiplier,system, test_different_angle_multiplier*STEERING_ANGLE_INCREMENT))
+
+                    rewards.append(reward(system))
+                    steering_angle = steering_angle+(test_different_angle_multiplier*STEERING_ANGLE_INCREMENT)
+                    system.tick_simulation(front_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
+                                                   rear_wheel_torque=TORQUE_INCREMENT*test_different_torque_multiplier,
+                                                   steering_angle=steering_angle%(2*math.pi))                       
                         
                 else:
                 #Take best choice and use the simualtion on it
-                    while system.is_on_track:
-                        q_values.append(qVal(weights, features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system))
+                    q_values.append(qVal(weights, features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system, best_angle_multplier*STEERING_ANGLE_INCREMENT))
 
-                        rewards.append(reward(system))
-                        feature_evals.append(feature_evaluations(features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, 
-                                             TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system))
-                        
-                        steering_angle=steering_angle+(best_angle_multplier*STEERING_ANGLE_INCREMENT)
-                        system.tick_simulation(front_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                                       rear_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                                       steering_angle=steering_angle)                      
+                    rewards.append(reward(system))
+                    feature_evals.append(feature_evaluations(features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, 
+                                         TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system, best_angle_multplier*STEERING_ANGLE_INCREMENT))                    
+                    steering_angle=steering_angle+(best_angle_multplier*STEERING_ANGLE_INCREMENT)
+                    system.tick_simulation(front_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
+                                                   rear_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
+                                                   steering_angle=steering_angle%(2*math.pi))                       
             
             #Use history and create new weights
             #Use old weight values and new points to
@@ -301,8 +309,12 @@ def oursim():
             #I just wanted to simulate to pause per step to see the effects
         except SimulationError:
             rewards.append(reward(system))
+            best_qs.append(CRASH_PUNISHMENT)
+            q_values.append(CRASH_PUNISHMENT)
+            print q_values
+            print best_qs
             print "Simulation ", i , " weights: " , weights
-            weights = update_weights(weights, q_values, rewards, feature_evals)
+            weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
             if i==SIMULATION_MAX_TIME-1:
                 system.plot_history()
             
@@ -310,67 +322,21 @@ def oursim():
     
         #Update weights
         
-    for i in range(SIMULATION_MAX_TIME):
-        try:
-            epsilon = 1/(i+1)
-            system = VehicleTrackSystem()
-            while system.is_on_track:
-                #Actually, we should do a +- range from current steering angle so we don't hard steer 
-                #Also for a range of torques
-                best_q_val = CRASH_PUNISHMENT
-                best_torque_multiplier = 0
-                best_angle_multplier = 0 
-                for torque_multiplier in range(-10, 11):
-                    test_torque = torque_multiplier*TORQUE_INCREMENT
-                                        for angle_multiplier in range(-8, 9):
-                        
-                        test_angle = steering_angle + (angle_multiplier*STEERING_ANGLE_INCREMENT)
-                        x, y, vx, vy = system.predict_states(test_torque, test_torque, test_angle)
-                        test_q = qVal(weights, features, test_torque, test_torque, test_angle, system)
-                        #print test_q
-                        #thing with angle
-                        if test_q > best_q_val:
-                            best_torque_multiplier = torque_multiplier
-                            best_angle_multplier = angle_multiplier
-                        #Test parameters
-                        #Calculate predicted Q vals
-                        #Save best angle and torque
-                        
-                        
-                #print best_angle_multplier
-                #print best_torque_multiplier
-                      #Take best choice and use the simualtion on it
-                    
-                    q_values.append(qVal(weights, features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system))
-                    rewards.append(reward(system))
-                    feature_evals.append(feature_evaluations(features, best_angle_multplier*STEERING_ANGLE_INCREMENT+steering_angle, 
-                                         TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system))
-                    system.tick_simulation(front_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                                   rear_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                                   steering_angle=steering_angle+(best_angle_multplier*STEERING_ANGLE_INCREMENT))      
-        
-        except SimulationError:
-            rewards.append(reward(system))
-            print "Simulation ", i , " weights: " , weights
-            weights = update_weights(weights, q_values, rewards, feature_evals)
-            if i == SIMULATION_MAX_TIME-1:
-                system.plot_history()
                 
 
-def update_weights(weights, q_values, rewards, feature_evals):
+def update_weights(weights, q_values, best_qs, rewards, feature_evals):
     #print rewards[-1], rewards[-2]
     #print len(rewards), len(q_values), len(weights), len(feature_evals)
     
-    
-    
+    '''
     for i in range(len(q_values)-1):
         q_values[-i-1] -= LEARNING_RATE*rewards[-i-1]
-        
-        
+            
+        '''
         
     for i in range(len(weights)):
         for j in range(len(q_values)-1):
-            weights[i] = weights[i] + LEARNING_RATE*( rewards[j] + DISCOUNT_FACTOR*q_values[j+1] - q_values[j])*feature_evals[j][i]
+            weights[i] = weights[i] + LEARNING_RATE*( rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
 
             
             
@@ -404,6 +370,7 @@ def main():
     for i in range (len(features)):
         print features[i](angle, torque, torque, tx, ty, tvx, tvy)
     '''
+    #print (-math.pi/2)%(2*math.pi)
     oursim()
  
 if __name__ == "__main__":
