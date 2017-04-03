@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -99999999999999999999
+CRASH_PUNISHMENT = -250
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -22,9 +22,9 @@ MAX_TORQUE = 100
 TORQUE_INCREMENT = 20
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/32
-SIMULATION_MAX_TIME = 42
-DISCOUNT_FACTOR = .8
-LEARNING_RATE = .8
+SIMULATION_MAX_TIME = 22
+DISCOUNT_FACTOR = .1
+LEARNING_RATE = .1
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -196,6 +196,8 @@ def f13_crash(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
 def f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return dtheta
 
+def f15_raw_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return steering_angle
 
 
 #def f9_circle_velocity(steering_angle, fwt, rwt, x, y, vx, vy):
@@ -214,7 +216,9 @@ def oursim():
     #distance_travelled = 0
     weights= []
     #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness, f13_crash, f14_delta_theta]
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential,
+                f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness,
+                f13_crash, f14_delta_theta]
     for i in range(len(features)):
         weights.append(uniform(0, 1))
     #Initialize random weights
@@ -224,7 +228,7 @@ def oursim():
         system = VehicleTrackSystem()
         try:
            #i represents time/episode
-            epsilon = 1/(i+1)
+            epsilon = 1.0/(i+1.0)
             q_values = []
             rewards = []
             feature_evals = []
@@ -318,8 +322,8 @@ def oursim():
             print "MAX Q: ", best_qs
             print "Simulation ", i , " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
-            if i==SIMULATION_MAX_TIME-1:
-                system.plot_history()
+#            if i==SIMULATION_MAX_TIME-1:
+            system.plot_history()
             
             #var = raw_input("Give me  the input here when ready to move on: ")
     
