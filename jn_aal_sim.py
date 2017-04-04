@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -2000.0
+CRASH_PUNISHMENT = -500.0
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -18,12 +18,12 @@ TRACK_OUTER_RADIUS_Y = 350.0
 TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
 TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
-MAX_TORQUE = 100.0
+MAX_TORQUE = 40.0
 TORQUE_INCREMENT = 10.0
 MAX_DELTA_STEERING_ANGLE = math.pi/2.0
-STEERING_ANGLE_INCREMENT = math.pi/32.0
+STEERING_ANGLE_INCREMENT = math.pi/16.0
 SIMULATION_MAX_TIME = 200
-DISCOUNT_FACTOR = .5
+DISCOUNT_FACTOR = .2
 LEARNING_RATE = .2
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
@@ -231,7 +231,7 @@ def oursim():
     #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
     features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential,
                 f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness,
-                f13_crash, f14_delta_theta]
+                f14_delta_theta]
     #features = [f1_steering_angle]
     for i in range(len(features)):
         weights.append(uniform(0, 1))
@@ -324,6 +324,7 @@ def oursim():
             #Reassign old weights to new weights for persistence
 
         except SimulationError :
+            print rewards[-1]
             
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
@@ -345,6 +346,8 @@ def oursim():
  
         except WindowsError:
             
+            print rewards[-1]
+            '''
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
@@ -358,9 +361,10 @@ def oursim():
             if episode==SIMULATION_MAX_TIME-1:
                 system.plot_history()
                 '''
-            if(episode%10==0):
+            if(episode%1==0):
                 system.plot_history()
                 
+                '''
 
 def update_weights(weights, q_values, best_qs, rewards, feature_evals):
 
