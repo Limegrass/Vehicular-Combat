@@ -18,13 +18,13 @@ TRACK_OUTER_RADIUS_Y = 350.0
 TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
 TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
-MAX_TORQUE = 100
-TORQUE_INCREMENT = 20
+MAX_TORQUE = 1
+TORQUE_INCREMENT = 1 
 MAX_DELTA_STEERING_ANGLE = math.pi/2
 STEERING_ANGLE_INCREMENT = math.pi/32
-SIMULATION_MAX_TIME = 22
-DISCOUNT_FACTOR = .1
-LEARNING_RATE = .1
+SIMULATION_MAX_TIME = 50
+DISCOUNT_FACTOR = .8
+LEARNING_RATE = .8
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -62,7 +62,7 @@ def dist_from_inner_wall(x, y):
 
 # crude lap testing
 def full_lap(system):
-    return distance_travelled > 2*math.pi*TRACK_OUTER_RADIUS_X
+    return distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) > 2*math.pi*TRACK_INNER_RADIUS_X
 
 def follow_centerness(x, y):
     return abs(dist_from_inner_wall(x, y) 
@@ -255,7 +255,7 @@ def oursim():
             best_qs = []
             steering_angle = 0.0
            
-            while True: 
+            while not full_lap(system): 
                 #Actually, we should do a +- range from current steering angle so we don't hard steer 
                 #Also for a range of torques
                 best_q_val = CRASH_PUNISHMENT
@@ -353,12 +353,10 @@ def update_weights(weights, q_values, best_qs, rewards, feature_evals):
         q_values[-i-1] -= LEARNING_RATE*rewards[-i-1]
             
         '''
-    print weights
     for i in range(len(weights)):
         for j in range(len(q_values)-1):
             weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
 
-    print weights
             
             
     '''
