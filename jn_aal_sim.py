@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -25000000.0
+CRASH_PUNISHMENT = -2000.0
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -23,8 +23,8 @@ TORQUE_INCREMENT = 10.0
 MAX_DELTA_STEERING_ANGLE = math.pi/2.0
 STEERING_ANGLE_INCREMENT = math.pi/32.0
 SIMULATION_MAX_TIME = 200
-DISCOUNT_FACTOR = .1
-LEARNING_RATE = .1
+DISCOUNT_FACTOR = .5
+LEARNING_RATE = .2
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -79,7 +79,7 @@ def reward(system):
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
-    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)
+    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*10
     #negative torques are fine
     return reward
 
@@ -210,8 +210,8 @@ def f13_crash(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
 def f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(dtheta/MAX_DELTA_STEERING_ANGLE)
 
-def f15_raw_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-    return steering_angle
+def f15_low_velocity(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return 1 if (system.cur_vx**2 + system.cur_vy**2)**.5 < .01 else 0
 
 
 #def f9_circle_velocity(steering_angle, fwt, rwt, x, y, vx, vy):
@@ -304,31 +304,62 @@ def oursim():
                 rewards.append(reward(system))
                 feature_evals.append(feature_evaluations(features, steering_angle, 
                                      TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system, best_angle_multplier*STEERING_ANGLE_INCREMENT))                    
+                
+                rounded_angle = round(steering_angle, 2)
+                rounded_torque = round(best_torque_multiplier*TORQUE_INCREMENT, 2)
 
-                system.tick_simulation(front_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                               rear_wheel_torque=best_torque_multiplier*TORQUE_INCREMENT,
-                                               steering_angle=steering_angle)                       
+                system.tick_simulation(front_wheel_torque=rounded_torque,
+                                               rear_wheel_torque=rounded_torque,
+                                               steering_angle=rounded_angle)                       
+                '''
+                system.tick_simulation(front_wheel_torque=(best_torque_multiplier*TORQUE_INCREMENT), 
+                                               rear_wheel_torque=(best_torque_multiplier*TORQUE_INCREMENT), 
+                                               steering_angle=rounded_angle)                       
+                '''
+                                               
 
             #Use history and create new weights
             #Use old weight values and new points to
             #Modify our new weight values
             #Reassign old weights to new weights for persistence
 
-        except SimulationError:
+        except SimulationError :
             
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
             #print "Rewards: ", rewards
-            print "Features: ", feature_evals
+            #print "Features: ", feature_evals
             #print "Q: ", q_values
             #print "MAX Q: ", best_qs
             print "Simulation ", episode, " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
-            #if episode==SIMULATION_MAX_TIME-1:
-             #   system.plot_history()
+            '''
+            if episode==SIMULATION_MAX_TIME-1:
+                system.plot_history()
+            
+            '''
+            if(episode%10==0):
+                system.plot_history()
 
-            system.plot_history()
+ 
+        except WindowsError:
+            
+            rewards.append(reward(system))
+            best_qs.append(CRASH_PUNISHMENT)
+            q_values.append(CRASH_PUNISHMENT)
+            #print "Rewards: ", rewards
+            #print "Features: ", feature_evals
+            #print "Q: ", q_values
+            #print "MAX Q: ", best_qs
+            print "Simulation ", episode, " weights: " , weights
+            weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
+            '''
+            if episode==SIMULATION_MAX_TIME-1:
+                system.plot_history()
+                '''
+            if(episode%10==0):
+                system.plot_history()
                 
 
 def update_weights(weights, q_values, best_qs, rewards, feature_evals):
@@ -338,8 +369,8 @@ def update_weights(weights, q_values, best_qs, rewards, feature_evals):
         new_weights.append(weights[i])
     for i in range(len(weights)):
         for j in range(len(q_values)-1):
-            #new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
-            new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*q_values[j+1] - q_values[j])*feature_evals[j][i]
+            new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
+            #new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*q_values[j+1] - q_values[j])*feature_evals[j][i]
 
     '''
     weights_double = []
@@ -348,7 +379,11 @@ def update_weights(weights, q_values, best_qs, rewards, feature_evals):
     for i in range(len(weights)):
         for j in range(len(q_values)-1):
             weights_double[i] = weights[i] + LEARNING_RATE*(rewards[-j-1] + DISCOUNT_FACTOR*best_qs[-j-2] - q_values[-j-1])*feature_evals[-j-1][i]
+    
+    for i in range(len(weights)):
+        new_weights[i] = round(new_weights[i], 6)
     '''
+   
     return new_weights
                               
 def main():
