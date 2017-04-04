@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -500.0
+CRASH_PUNISHMENT = -2500
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -18,12 +18,12 @@ TRACK_OUTER_RADIUS_Y = 350.0
 TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
 TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
-MAX_TORQUE = 40.0
-TORQUE_INCREMENT = 10.0
-MAX_DELTA_STEERING_ANGLE = math.pi/2.0
-STEERING_ANGLE_INCREMENT = math.pi/16.0
+MAX_TORQUE = 5.0
+TORQUE_INCREMENT = 1.0
+MAX_DELTA_STEERING_ANGLE = math.pi/4.0
+STEERING_ANGLE_INCREMENT = math.pi/32.0
 SIMULATION_MAX_TIME = 200
-DISCOUNT_FACTOR = .2
+DISCOUNT_FACTOR = .5
 LEARNING_RATE = .2
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
@@ -75,11 +75,12 @@ def reward(system):
     reward = 0 
     #theta = math.atan2(y, x)
     #reward positive velocity
-    reward += circle_velocity(system) 
+    reward += circle_velocity(system) *2
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
-    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*10
+    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*.5
+    reward -= (1/(system.cur_vx**2 + system.cur_vy**2))**2
     #negative torques are fine
     return reward
 
@@ -179,6 +180,7 @@ def f6_high_v_tangential(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dth
 
 def f7_distance(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) / (2*math.pi*TRACK_OUTER_RADIUS_X))
+    #return distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx)
 
 
 def f8_centerness(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
@@ -201,6 +203,8 @@ def f10_pvy(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
 
 def f11_pdistance(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(distance_travelled(px, py, pvx) / (2*math.pi*TRACK_OUTER_RADIUS_X))
+    #return abs(distance_travelled(px, py, pvx))
+
 
 def f12_pcenterness(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return abs(follow_centerness(px, py)/50)
@@ -211,7 +215,15 @@ def f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     return abs(dtheta/MAX_DELTA_STEERING_ANGLE)
 
 def f15_low_velocity(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-    return 1 if (system.cur_vx**2 + system.cur_vy**2)**.5 < .01 else 0
+    speed = (system.cur_vx**2 + system.cur_vy**2)**.5
+    return (.3/speed) if speed > .1 else 1.0
+
+def f16_pdist_outer_wall(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return dist_from_outer_wall(px, py)/50
+                                
+
+def f17_pdist_inner_wall(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    return dist_from_inner_wall(px, py)/50
 
 
 #def f9_circle_velocity(steering_angle, fwt, rwt, x, y, vx, vy):
@@ -229,15 +241,18 @@ def oursim():
     #distance_travelled = 0
     weights= []
     #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
-    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential,
+    #features = [f1_steering_angle, f4_vx, f5_vy, f6_high_v_tangential, f7_distance, f8_centerness]
+    features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, 
                 f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness,
-                f14_delta_theta]
+                f14_delta_theta, f15_low_velocity]
     #features = [f1_steering_angle]
     for i in range(len(features)):
-        weights.append(uniform(0, 1))
+        weights.append(uniform(-100.0, 100.0))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
-   
+    
+    
+    best_reward = 0
     for episode in range(SIMULATION_MAX_TIME):
         system = VehicleTrackSystem()
         try:
@@ -254,12 +269,20 @@ def oursim():
             while True:
                 #Actually, we should do a +- range from current steering angle so we don't hard steer 
                 #Also for a range of torques
+                '''
+                speed = (system.cur_vx**2 + system.cur_vy**2)**.5
+                if speed < .1:
+                    print speed
+                    '''
                 best_q_val = CRASH_PUNISHMENT
                 best_torque_multiplier = 0
                 best_angle_multplier = 0 
+                    
+                        
+
                 for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS+1)):
                     test_torque = torque_multiplier*TORQUE_INCREMENT
-                                        for angle_multiplier in range(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
+                    for angle_multiplier in range(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
                         
                         test_angle = steering_angle + (angle_multiplier*STEERING_ANGLE_INCREMENT)
                         if test_angle > math.pi:
@@ -277,10 +300,12 @@ def oursim():
                         #Test parameters
                         #Calculate predicted Q vals
                         #Save best angle and torque
-                        
+                    
                 best_qs.append(best_q_val)
 
                         
+                if (system.cur_vx**2 + system.cur_vy**2)**.5 < 1.0:
+                    best_torque_multiplier = 5
                 #print best_angle_multplier
                 #print best_torque_multiplier
                 if uniform(0.0,1.0) < epsilon: 
@@ -326,6 +351,8 @@ def oursim():
         except SimulationError :
             print rewards[-1]
             
+            
+            #rewards.append(CRASH_PUNISHMENT)
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
@@ -333,21 +360,27 @@ def oursim():
             #print "Features: ", feature_evals
             #print "Q: ", q_values
             #print "MAX Q: ", best_qs
-            print "Simulation ", episode, " weights: " , weights
+            print "Simulation Crash ", episode, " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
             '''
             if episode==SIMULATION_MAX_TIME-1:
                 system.plot_history()
             
             '''
-            if(episode%10==0):
+                
+            if rewards[-2] > best_reward:
                 system.plot_history()
+                best_reward = rewards[-2]
 
+            elif(episode%20==0):
+                system.plot_history()
  
         except WindowsError:
+            print (system.cur_vx**2 + system.cur_vy**2)**.5
             
             print rewards[-1]
-            '''
+            #rewards.append(CRASH_PUNISHMENT)
+            rewards.append(reward(system))
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
@@ -355,11 +388,16 @@ def oursim():
             #print "Features: ", feature_evals
             #print "Q: ", q_values
             #print "MAX Q: ", best_qs
-            print "Simulation ", episode, " weights: " , weights
+            print "Simulation Low V", episode, " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
-            '''
-            if episode==SIMULATION_MAX_TIME-1:
+                 
+            if rewards[-2] > best_reward:
                 system.plot_history()
+                best_reward = rewards[-2]
+            elif(episode%20==0):
+                system.plot_history()
+            
+ 
                 '''
             if(episode%1==0):
                 system.plot_history()
