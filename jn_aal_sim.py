@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -2500
+CRASH_PUNISHMENT = -25000
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -75,12 +75,12 @@ def reward(system):
     reward = 0 
     #theta = math.atan2(y, x)
     #reward positive velocity
-    reward += circle_velocity(system) *2
+    reward += circle_velocity(system) 
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
-    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*.5
-    reward -= (1/(system.cur_vx**2 + system.cur_vy**2))**2
+    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*2
+    reward -= (.1/(system.cur_vx**2 + system.cur_vy**2))
     #negative torques are fine
     return reward
 
@@ -353,9 +353,17 @@ def oursim():
             
             
             #rewards.append(CRASH_PUNISHMENT)
+            
+            '''
+            rewards.append(reward(system))
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
+            '''
+            last_reward = reward(system)
+            rewards.append(last_reward)
+            best_qs.append(last_reward)
+            q_values.append(last_reward)
             #print "Rewards: ", rewards
             #print "Features: ", feature_evals
             #print "Q: ", q_values
@@ -375,15 +383,23 @@ def oursim():
             elif(episode%20==0):
                 system.plot_history()
  
+            elif rewards[-2] > 500:
+                system.plot_history()
         except WindowsError:
             print (system.cur_vx**2 + system.cur_vy**2)**.5
             
             print rewards[-1]
             #rewards.append(CRASH_PUNISHMENT)
-            rewards.append(reward(system))
+            '''
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
+            '''
+            
+            last_reward = reward(system)
+            rewards.append(last_reward)
+            best_qs.append(last_reward)
+            q_values.append(last_reward)
             #print "Rewards: ", rewards
             #print "Features: ", feature_evals
             #print "Q: ", q_values
@@ -395,6 +411,8 @@ def oursim():
                 system.plot_history()
                 best_reward = rewards[-2]
             elif(episode%20==0):
+                system.plot_history()
+            elif rewards[-2] > 500:
                 system.plot_history()
             
  
