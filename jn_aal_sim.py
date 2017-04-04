@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -250
+CRASH_PUNISHMENT = -25000000.0
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -18,13 +18,13 @@ TRACK_OUTER_RADIUS_Y = 350.0
 TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
 TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
-MAX_TORQUE = 1
-TORQUE_INCREMENT = 1 
-MAX_DELTA_STEERING_ANGLE = math.pi/2
-STEERING_ANGLE_INCREMENT = math.pi/32
-SIMULATION_MAX_TIME = 50
-DISCOUNT_FACTOR = .8
-LEARNING_RATE = .8
+MAX_TORQUE = 100.0
+TORQUE_INCREMENT = 10.0
+MAX_DELTA_STEERING_ANGLE = math.pi/2.0
+STEERING_ANGLE_INCREMENT = math.pi/32.0
+SIMULATION_MAX_TIME = 200
+DISCOUNT_FACTOR = .1
+LEARNING_RATE = .1
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
 NUM_ANGLE_INCREMENTS = (MAX_DELTA_STEERING_ANGLE/STEERING_ANGLE_INCREMENT)
 
@@ -79,7 +79,7 @@ def reward(system):
     #reward positive distance travelled
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
-    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*10
+    reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)
     #negative torques are fine
     return reward
 
@@ -151,12 +151,10 @@ def f1_steering_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta
     return clockwise
 
 def f2_fwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
-    #return abs((fwt+MAX_TORQUE)/(MAX_TORQUE*2))
-    return fwt/MAX_TORQUE
+    return abs((fwt+MAX_TORQUE)/(MAX_TORQUE*2))
 
 def f3_rwt(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
-    #return abs((rwt+MAX_TORQUE)/(MAX_TORQUE*2))
-    return  rwt/MAX_TORQUE
+    return abs((rwt+MAX_TORQUE)/(MAX_TORQUE*2))
 
 def f4_vx(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
     theta = math.atan2(system.vehicle_position_history[-1].y/TRACK_MIDDLE_RADIUS_Y, system.vehicle_position_history[-1].x/TRACK_MIDDLE_RADIUS_X) 
@@ -210,7 +208,7 @@ def f12_pcenterness(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
 def f13_crash(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return 1 if system.is_on_track else 0
 def f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-    return dtheta
+    return abs(dtheta/MAX_DELTA_STEERING_ANGLE)
 
 def f15_raw_angle(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
     return steering_angle
@@ -231,22 +229,20 @@ def oursim():
     #distance_travelled = 0
     weights= []
     #features = [f0_constant, f1_steering_angle, f6_high_v_tangential, f7_distance, f8_centerness,  f11_pdistance, f12_pcenterness]
-    '''
     features = [f0_constant, f1_steering_angle, f2_fwt, f3_rwt, f4_vx, f5_vy, f6_high_v_tangential,
                 f7_distance, f8_centerness, f9_pvx, f10_pvy, f11_pdistance, f12_pcenterness,
                 f13_crash, f14_delta_theta]
-                '''
-    features = [f1_steering_angle]
+    #features = [f1_steering_angle]
     for i in range(len(features)):
         weights.append(uniform(0, 1))
     #Initialize random weights
     #Define a function fn and put in array so we can call w_n f_n
    
-    for i in range(SIMULATION_MAX_TIME):
+    for episode in range(SIMULATION_MAX_TIME):
         system = VehicleTrackSystem()
         try:
            #i represents time/episode
-            epsilon = 1.0/(i+1.0)
+            epsilon = 1.0/(episode+1.0)
             q_values = []
             rewards = []
             feature_evals = []
@@ -255,7 +251,7 @@ def oursim():
             best_qs = []
             steering_angle = 0.0
            
-            while not full_lap(system): 
+            while True:
                 #Actually, we should do a +- range from current steering angle so we don't hard steer 
                 #Also for a range of torques
                 best_q_val = CRASH_PUNISHMENT
@@ -267,12 +263,9 @@ def oursim():
                         
                         test_angle = steering_angle + (angle_multiplier*STEERING_ANGLE_INCREMENT)
                         if test_angle > math.pi:
-                            test_angle -= math.pi*2
+                            test_angle -= math.pi*2.0
                         if test_angle < -math.pi:
-                            test_angle += math.pi*2
-                        
-                        if test_angle > math.pi or test_angle < -math.pi:
-                            print "test:" , test_angle
+                            test_angle += math.pi*2.0
 
                         test_q = qVal(weights, features, test_angle, test_torque, test_torque, system, (angle_multiplier*STEERING_ANGLE_INCREMENT))
                         #print test_q
@@ -305,8 +298,6 @@ def oursim():
                 if steering_angle < -math.pi:
                     steering_angle += math.pi*2
 
-                if steering_angle > math.pi or steering_angle < -math.pi:
-                    print "c:", steering_angle
 
                 q_values.append(qVal(weights, features, steering_angle, TORQUE_INCREMENT*best_torque_multiplier, TORQUE_INCREMENT*best_torque_multiplier, system, best_angle_multplier*STEERING_ANGLE_INCREMENT))
 
@@ -322,57 +313,43 @@ def oursim():
             #Use old weight values and new points to
             #Modify our new weight values
             #Reassign old weights to new weights for persistence
-            
-            #I just wanted to simulate to pause per step to see the effects
+
         except SimulationError:
             
-            print "Rewards: ", rewards
-            print "Features: ", feature_evals
             rewards.append(reward(system))
             best_qs.append(CRASH_PUNISHMENT)
             q_values.append(CRASH_PUNISHMENT)
-            print "Q: ", q_values
-            print "MAX Q: ", best_qs
-            print "Simulation ", i , " weights: " , weights
+            #print "Rewards: ", rewards
+            print "Features: ", feature_evals
+            #print "Q: ", q_values
+            #print "MAX Q: ", best_qs
+            print "Simulation ", episode, " weights: " , weights
             weights = update_weights(weights, q_values, best_qs, rewards, feature_evals)
-            if i==SIMULATION_MAX_TIME-1:
-                system.plot_history()
-            
-            #var = raw_input("Give me  the input here when ready to move on: ")
-    
-        #Update weights
-        
+            #if episode==SIMULATION_MAX_TIME-1:
+             #   system.plot_history()
+
+            system.plot_history()
                 
 
 def update_weights(weights, q_values, best_qs, rewards, feature_evals):
-    #print rewards[-1], rewards[-2]
-    #print len(rewards), len(q_values), len(weights), len(feature_evals)
-    
-    '''
-    for i in range(len(q_values)-1):
-        q_values[-i-1] -= LEARNING_RATE*rewards[-i-1]
-            
-        '''
+
+    new_weights= []
+    for i in range(len(weights)):
+        new_weights.append(weights[i])
     for i in range(len(weights)):
         for j in range(len(q_values)-1):
-            weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
+            #new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*best_qs[j+1] - q_values[j])*feature_evals[j][i]
+            new_weights[i] = weights[i] + LEARNING_RATE*(rewards[j] + DISCOUNT_FACTOR*q_values[j+1] - q_values[j])*feature_evals[j][i]
 
-            
-            
     '''
-    sum = 0    
-    #ignore constant
-    
-    for i in range(len(weights)-1):
-        sum+= weights[i+1]
-    for i in range(len(weights)-1):
-        weights[i+1] = weights[i+1]/sum
-        
-    weights[0] /= 10
+    weights_double = []
+    for i in range(len(weights)):
+        weights_double.append(weights[i])
+    for i in range(len(weights)):
+        for j in range(len(q_values)-1):
+            weights_double[i] = weights[i] + LEARNING_RATE*(rewards[-j-1] + DISCOUNT_FACTOR*best_qs[-j-2] - q_values[-j-1])*feature_evals[-j-1][i]
     '''
-    
-    return weights
-
+    return new_weights
                               
 def main():
     #print dist_from_inner_wall(500*math.cos(0.5*math.pi),300*math.sin(0.5*math.pi))
@@ -389,7 +366,6 @@ def main():
     for i in range (len(features)):
         print features[i](angle, torque, torque, tx, ty, tvx, tvy)
     '''
-    print (-math.pi/2)%(2*math.pi)
     oursim()
  
 if __name__ == "__main__":
