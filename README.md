@@ -5,6 +5,7 @@ Path learning via Q-Learning
 
 
 TO DO LIST:
+
     Fix Ellipse Calculation, apply fixed ellipse calculation into rewards and features
 
     Fix Prediction to include friction
