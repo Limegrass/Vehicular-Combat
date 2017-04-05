@@ -36,72 +36,37 @@ def sim2():
     until 500 simulation "tics" have elapsed.
     """
     system = VehicleTrackSystem()
+    steering_angle = 0
 
-    front_wheel_torque = 00.0
-    rear_wheel_torque = 00.0 
-    steering_angle = 0.0
-    
+    print "VX,", "Angle"
     try:
-        for i in range(2):
+        while True:
+            front_wheel_torque = 00.0
+            rear_wheel_torque = 00.0 
+
+            #print system.cur_vx, ",", math.atan2((system.vehicle_position_history[-1].x/325)**2, (system.vehicle_position_history[-1].x/525)**2)-(math.pi)
+
+            #steering_angle = math.atan2(system.vehicle_position_history[-1].y, (system.vehicle_position_history[-1].x)*.8160)- (math.pi/2)
+#            steering_angle =  math.acos(system.vehicle_position_history[-1].x/525) - (math.pi/2)
+            #steering_angle -= math.pi/32
+            steering_angle = system.estimate_angle(system.vx)
+            print steering_angle
+            #print system.vx, system.vy,  steering_angle
             system.tick_simulation(front_wheel_torque=front_wheel_torque,
                                    rear_wheel_torque=rear_wheel_torque,
                                    steering_angle=steering_angle)
+            #print system.cur_vx
             # change steering angle (measured in radians) by a random amount
             #steering_angle += uniform(-0.05, 0.05)
-            print system.vehicle_position_history
             #for j in range(100):
                 #system.simulate_inputs(front_wheel_torque, rear_wheel_torque, steering_angle)
 
     except SimulationError:
-        pass
-    
-    system.plot_history()
-
-FRONT_WHEEL_TORQUE = 500.0
-REAR_WHEEL_TORQUE = 500.0 
-STEERING_ANGLE = 0.0
-DISTANCE_TRAVELLED = 0
-LEARNING_RATE = 1
-WEIGHTS = []
-QVALS = []
-
-def dist_from_inner_wall():
-    pass
-def dist_from_outer_wall():
-    pass
-def reward():
-    #do something 
-    return DISTANCE_TRAVELLED - abs(dist_from_inner_wall() - dist_from_outer_wall())
-
-def qVal():
-    #Steering Angle
-    #Distance from Center/Top/Bot of Track
-    #Velocity
-    #(Theta(v))?
-    #(Torque(Angular Momentum/Yaw, something))?
-    #
-    #Use a learning rate 1/t
-    pass
-def ourSim():
-    angle = -.5
-    best_angle = 0
-    best_q_val = 0
-    
-    
-    time = 1
-    while True:
-        cur_model = VehicleModel()
-        LEARNING_RATE = 1/time
-        while True:
-            while angle < 0.5:
-                #thing with angle
-                angle += .05
+        print "crash"
         system.plot_history()
-        var = raw_input("Give me  the input here: ")
-    
-        #Update weights
-        
-        time+=1
+    except WindowsError:
+        print "slow"
+        system.plot_history()
     
 def main():
     #sim1()
