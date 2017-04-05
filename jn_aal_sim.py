@@ -10,7 +10,7 @@ from simulation_interface import VehicleTrackSystem
 #import simulation_interface
 from utils import SimulationError
 
-CRASH_PUNISHMENT = -25000
+CRASH_PUNISHMENT = -1000
 TRACK_INNER_RADIUS_X = 500.0
 TRACK_OUTER_RADIUS_X = 550.0
 TRACK_INNER_RADIUS_Y = 300.0
@@ -18,11 +18,11 @@ TRACK_OUTER_RADIUS_Y = 350.0
 TRACK_MIDDLE_RADIUS_X = (TRACK_INNER_RADIUS_X+TRACK_OUTER_RADIUS_X)/2
 TRACK_MIDDLE_RADIUS_Y = (TRACK_INNER_RADIUS_Y+TRACK_OUTER_RADIUS_Y)/2
 RADIUS_OVER_INERTIA = 1.03212E-7
-MAX_TORQUE = 5.0
-TORQUE_INCREMENT = 1.0
+MAX_TORQUE = 1.0
+TORQUE_INCREMENT = 0.2
 MAX_DELTA_STEERING_ANGLE = math.pi/4.0
 STEERING_ANGLE_INCREMENT = math.pi/32.0
-SIMULATION_MAX_TIME = 200
+SIMULATION_MAX_TIME = 201
 DISCOUNT_FACTOR = .5
 LEARNING_RATE = .2
 NUM_TORQUE_INCREMENTS = MAX_TORQUE/TORQUE_INCREMENT
@@ -42,7 +42,8 @@ def distance_travelled(x, y, vx):
         theta = math.pi + theta
     else:
         theta = math.pi/2 - theta
-    return theta*TRACK_OUTER_RADIUS_X
+    #Was using Outer, Trying Middle
+    return theta*TRACK_MIDDLE_RADIUS_X
 
     
 #return distance to outer wall
@@ -70,8 +71,10 @@ def follow_centerness(x, y):
 
 def reward(system):
     #punish crashes severely
+    '''
     if not system.is_on_track:
         return CRASH_PUNISHMENT
+        '''
     reward = 0 
     #theta = math.atan2(y, x)
     #reward positive velocity
@@ -80,8 +83,10 @@ def reward(system):
     reward += distance_travelled(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y, system.cur_vx) 
     #reward distance from walls. Best in the center with a value of 0
     reward -= follow_centerness(system.vehicle_position_history[-1].x, system.vehicle_position_history[-1].y)*2
-    reward -= (.1/(system.cur_vx**2 + system.cur_vy**2))
+    reward -= (.1/(system.cur_vx**2 + system.cur_vy**2)**.5)*20
     #negative torques are fine
+    if not system.is_on_track:
+        reward += CRASH_PUNISHMENT
     return reward
 
 
@@ -280,7 +285,7 @@ def oursim():
                     
                         
 
-                for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS+1)):
+                #for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS+1)):
                     test_torque = torque_multiplier*TORQUE_INCREMENT
                     for angle_multiplier in range(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
                         
@@ -304,17 +309,25 @@ def oursim():
                 best_qs.append(best_q_val)
 
                         
-                if (system.cur_vx**2 + system.cur_vy**2)**.5 < 1.0:
-                    best_torque_multiplier = 5
+                #if (system.cur_vx**2 + system.cur_vy**2)**.5 < 1.0:
+                #    best_torque_multiplier = 5
+                    
                 #print best_angle_multplier
                 #print best_torque_multiplier
+                '''
                 if uniform(0.0,1.0) < epsilon: 
                     
                   # print best_angle_multplier
                    # print best_torque_multiplier
                     best_torque_multiplier = random.randint(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS))
                     best_angle_multplier = random.randint(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
+                    '''
+                if uniform(0.0,1.0) < epsilon: 
                     
+                  # print best_angle_multplier
+                   # print best_torque_multiplier
+                    best_angle_multplier = random.randint(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
+                   
                     
                 steering_angle+=(best_angle_multplier*STEERING_ANGLE_INCREMENT)
 
