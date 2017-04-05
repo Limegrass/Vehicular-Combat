@@ -286,6 +286,7 @@ def oursim():
                         
 
                 #for torque_multiplier in range(int(-NUM_TORQUE_INCREMENTS), int(NUM_TORQUE_INCREMENTS+1)):
+                for torque_multiplier in range(1, int(NUM_TORQUE_INCREMENTS+1)):
                     test_torque = torque_multiplier*TORQUE_INCREMENT
                     for angle_multiplier in range(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS+1)):
                         
@@ -326,6 +327,7 @@ def oursim():
                     
                   # print best_angle_multplier
                    # print best_torque_multiplier
+                    best_torque_multiplier = random.randint(1, int(NUM_TORQUE_INCREMENTS) + 1)
                     best_angle_multplier = random.randint(int(-NUM_ANGLE_INCREMENTS), int(NUM_ANGLE_INCREMENTS))
                    
                     
