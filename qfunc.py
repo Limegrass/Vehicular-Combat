@@ -3,6 +3,8 @@ import math
 from simulation_interface import VehicleTrackSystem
 class QFunc:
     CRASH_PUNISHMENT = -25000
+    #I only cared about travelling as far as possible, so I am making
+    #the range of torques small for now
     MAX_TORQUE = 5.0
     TORQUE_INCREMENT = 1.0
     MAX_DELTA_STEERING_ANGLE = math.pi/1.0
@@ -10,17 +12,17 @@ class QFunc:
 
     LEARNING_RATE = 0.2 #change this
     DISCOUNT_FACTOR = 0.5 #change this
-    NUM_FEATURES = 6 #This must be changed to equal to the amount features in the __init__
+    NUM_FEATURES = 15 #This must be changed to equal to the amount features in the __init__
     
     def __init__(self, weights):
-        '''PLAY WITH FEATURES'''
+        '''PLAY WITH FEATURES: Change NUM_FEATURES Above'''
         #features = [self._f0_constant, self._f1_steering_angle, self._f2_fwt, self._f3_rwt, self._f7_distance, self._f8_centerness]
         #features = [self._f1_steering_angle, self._f4_vx, self._f5_vy, self._f6_high_v_tangential, self._f7_distance, self._f8_centerness]
-        #features = [self._f0_constant, self._f1_steering_angle, self._f2_fwt, self._f3_rwt, self._f4_vx, self._f5_vy, 
-         #           self._f7_distance, self._f8_centerness, self._f9_pvx, self._f10_pvy, self._f11_pdistance, self._f12_pcenterness,
-          #          self._f14_delta_theta, self._f15_low_velocity]
+        self.features = [self._f0_constant, self._f1_steering_angle, self._f2_fwt, self._f3_rwt, self._f4_vx, self._f5_vy, self._f6_high_v_tangential,
+                    self._f7_distance, self._f8_centerness, self._f9_pvx, self._f10_pvy, self._f11_pdistance, self._f12_pcenterness,
+                    self._f14_delta_theta, self._f15_low_velocity]
         #features = [_f1_steering_angle]
-        self.features = [self._f0_constant, self._f1_steering_angle, self._f2_fwt, self._f3_rwt, self._f7_distance, self._f8_centerness]
+        #self.features = [self._f0_constant, self._f1_steering_angle, self._f2_fwt, self._f3_rwt, self._f7_distance, self._f8_centerness]
         self.feature_evaluations = []
         self.q_used = []
         self.rewards = []
@@ -66,9 +68,7 @@ class QFunc:
     
     def _f1_steering_angle(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
         #Find the angle it should face for forward movement
-        #theta = math.atan2(system.y/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_Y, system.x/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_X) 
-        
-        theta = math.atan2(system.vehicle_position_history[-1].y, (system.vehicle_position_history[-1].x)*.81601)
+        theta = math.atan2(system.y/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_Y, system.x/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_X) 
         theta -= math.pi/2
         if theta < -math.pi:
             theta += (math.pi*2)
@@ -95,14 +95,14 @@ class QFunc:
         return abs(((system.vx/system.speed - math.cos(theta))) / math.cos(theta))
     
     def _f5_vy(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta):
-        theta = math.atan2(system.y/TRACK_MIDDLE_RADIUS_Y, system.x/TRACK_MIDDLE_RADIUS_X) 
+        theta = math.atan2(system.y/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_Y, system.x/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_X) 
         theta -= math.pi/2
         if theta == 0:
             return abs(((system.vy/system.speed - math.sin(theta))))
         return abs(((system.vy/system.speed - math.sin(theta))) / math.sin(theta))
     
     def _f6_high_v_tangential(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-        theta = math.atan2(system.y/TRACK_MIDDLE_RADIUS_Y, system.x/TRACK_MIDDLE_RADIUS_X) 
+        theta = math.atan2(system.y/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_Y, system.x/VehicleTrackSystem.TRACK_MIDDLE_RADIUS_X) 
         theta -= math.pi/2
         #If the tangential velocity to a wall relative to the direction the car should face is >50
         return abs(system.vx*math.cos(theta) - system.vy * math.sin(theta))/50
@@ -128,16 +128,16 @@ class QFunc:
         return abs(((pvy/(pvx**2 + pvy**2)**.5 - math.sin(theta))) / math.sin(theta))
     
     def _f11_pdistance(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-        return abs(distance_travelled(px, py, pvx) / (2*math.pi*VehicleTrackSystem.TRACK_OUTER_RADIUS_X))
+        return abs(self.distance_travelled(px, py, pvx) / (2*math.pi*VehicleTrackSystem.TRACK_OUTER_RADIUS_X))
         #return abs(distance_travelled(px, py, pvx))
     
     
     def _f12_pcenterness(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
-        return abs(follow_centerness(px, py)/50)
+        return abs(self.follow_centerness(px, py)/50)
     
     def _f13_crash(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
         return 1 if system.is_on_track else 0
-    def _f14_delta_theta(steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
+    def _f14_delta_theta(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
         return abs(dtheta/self.MAX_DELTA_STEERING_ANGLE)
     
     def _f15_low_velocity(self, steering_angle, fwt, rwt, system, px, py, pvx, pvy, dtheta): 
