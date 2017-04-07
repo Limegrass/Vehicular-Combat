@@ -27,7 +27,7 @@ class VehicleTrackSystem:
     TRACK_OUTER_RADIUS_Y = 350.0
     TRACK_MIDDLE_RADIUS_X = 525.0
     TRACK_MIDDLE_RADIUS_Y = 325.0
-    RADIUS_OVER_INERTIA = 1.03212E-7
+    RADIUS_OVER_INERTIA =1.10237E-3
     
     def __init__(self):
         self._vehicle_state = VehicleModel()
